@@ -206,7 +206,8 @@ if generate_btn:
         s_gen = "Male" if "גבר" in sender_gender else "Female"
         r_gen = "Male" if "גבר" in recipient_gender else "Female"
         
-        with st.spinner('מג'נרט אהבה... ❤️'):
+        # --- כאן בוצע התיקון: שימוש במרכאות כפולות למניעת התנגשות עם הגרש ---
+        with st.spinner("מג'נרט אהבה... ❤️"):
             greeting, img_prompt, tiktok, tags = generate_perfect_content(
                 api_key, s_gen, r_gen, recipient_name, relation, occasion, tone, details
             )
