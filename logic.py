@@ -3,53 +3,49 @@ import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_fixed
 import json
 import logging
-import urllib.parse  # <--- הוספתי את השורה הזאת שהייתה חסרה!
-from config import AIModels, SYSTEM_PROMPT
+import urllib.parse
+from config import AIConfig, SYSTEM_PROMPT
 
-# הגדרת לוגים
+# הגדרת לוגים (לצורך מוניטורינג עתידי)
 logging.basicConfig(level=logging.INFO)
 
 def configure_genai(api_key: str):
-    """מגדיר את מפתח ה-API."""
     genai.configure(api_key=api_key)
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+@retry(stop=stop_after_attempt(AIConfig.RETRY_ATTEMPTS), wait=wait_fixed(2))
 def generate_content_with_retry(model, prompt):
-    """פונקציית עזר עם מנגנון ניסיון חוזר במקרה של כשל רשת."""
+    """מנגנון שרידות: מנסה שוב אם יש כשל רשת."""
     return model.generate_content(prompt)
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def generate_perfect_content(api_key: str, params: dict) -> dict:
-    """
-    מייצר את התוכן באמצעות Gemini.
-    משתמש ב-Cache כדי לחסוך קריאות זהות.
-    """
+def generate_perfect_content(api_key: str, params: dict, language: str) -> dict:
+    """יצירת תוכן עם Caching לחיסכון במשאבים."""
     try:
         configure_genai(api_key)
         
-        # הגדרת המודל עם פלט JSON מובנה
-        # שימוש ב-AIModels.GEMINI_PRO שואב את השם שהגדרנו ב-config.py
         model = genai.GenerativeModel(
-            AIModels.GEMINI_PRO,
+            AIConfig.MODEL_NAME,
             generation_config={"response_mime_type": "application/json"}
         )
         
-        # בניית הפרומפט
-        formatted_prompt = SYSTEM_PROMPT.format(**params)
+        # הוספת השפה לפרומפט
+        params['language'] = "Hebrew" if language == 'he' else "English"
         
-        # שליחה וקבלת תשובה
+        formatted_prompt = SYSTEM_PROMPT.format(**params)
         response = generate_content_with_retry(model, formatted_prompt)
         
-        # פענוח JSON
         return json.loads(response.text)
 
     except Exception as e:
         logging.error(f"AI Generation Error: {e}")
-        # במקרה של שגיאה, נחזיר None והממשק יציג הודעה
+        # כאן ניתן להוסיף שליחה ל-Sentry
         return None
 
 def generate_image_url(prompt: str) -> str:
-    """מייצר קישור לתמונה באמצעות Flux-Realism (Pollinations)."""
-    # עכשיו השורה הזו תעבוד כי urllib.parse יובא בהצלחה
-    safe_prompt = urllib.parse.quote(f"cinematic shot, 8k, {prompt}")
+    """
+    יצירת תמונה.
+    הערה: כאן ניתן להוסיף לוגיקת Fallback ל-DALL-E אם רוצים.
+    כרגע משתמשים ב-Pollinations כפתרון חינמי ומהיר.
+    """
+    safe_prompt = urllib.parse.quote(f"cinematic lighting, photorealistic, 8k, {prompt}")
     return f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=768&model=flux-realism&nologo=true"
