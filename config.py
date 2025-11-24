@@ -1,17 +1,16 @@
 import streamlit as st
 
-PAGE_CONFIG = {
-    "page_title": "LoveFlow Ultimate",
-    "page_icon": "💎",
-    "layout": "centered",
-    "initial_sidebar_state": "expanded"
-}
+class AppConfig:
+    PAGE_TITLE = "LoveFlow Ultimate"
+    PAGE_ICON = "💎"
+    LAYOUT = "centered"
+    
+class AIConfig:
+    # שימוש במודל עדכני ותקין
+    MODEL_NAME = "gemini-2.5-pro" 
+    RETRY_ATTEMPTS = 3
 
-# שימוש ב-Enum למודלים
-class AIModels:
-    GEMINI_PRO = "gemini-2.5-pro"
-    # ניתן להוסיף כאן מודלים נוספים בעתיד
-
+# CSS פרימיום עם אופטימיזציה למובייל (Media Queries)
 CUSTOM_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap');
@@ -23,36 +22,48 @@ CUSTOM_CSS = """
     
     /* Glassmorphism Card */
     .glass-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.6);
         padding: 2rem;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
         margin-bottom: 20px;
+    }
+
+    /* Mobile Optimization */
+    @media (max-width: 600px) {
+        .glass-card { padding: 1rem; }
+        .stButton > button { width: 100%; border-radius: 12px; }
+        h1 { font-size: 1.8rem !important; }
     }
     
     /* Button Animation */
     .stButton > button {
-        background: linear-gradient(45deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
-        color: #555;
+        background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+        color: #444;
         border: none;
-        transition: all 0.3s ease;
         font-weight: bold;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
     .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
-    
-    h1, h2, h3 { color: #5D5D5D; }
 </style>
 """
 
-# פרומפט בסיס מובנה ומותאם ל-JSON Output
+# Chain of Thought (CoT) System Prompt
 SYSTEM_PROMPT = """
-You are a world-class Israeli creative writer and emotional intelligence expert.
-Your goal is to generate a JSON response containing a romantic greeting, an image prompt, a video idea, and hashtags.
+You are a world-class creative writer and emotional intelligence expert.
+Your goal is to generate a JSON response.
+
+PROCESS (Chain of Thought):
+1. Analyze the relationship dynamic and the specific occasion.
+2. Determine the appropriate emotional depth based on the requested tone.
+3. Draft a greeting in {language} that feels authentic, avoiding clichés.
+4. Visualize a scene that complements this text for the image prompt.
 
 STRICT GRAMMAR RULES:
 Sender: {sender_gender}
@@ -67,9 +78,9 @@ Details: {details}
 
 OUTPUT JSON FORMAT:
 {{
-    "greeting": "Modern Hebrew greeting...",
-    "image_prompt": "English description for AI image generator...",
-    "tiktok_idea": "Short script description...",
+    "greeting": "The greeting text in {language}...",
+    "image_prompt": "Detailed English description for AI image generator, focusing on lighting and mood...",
+    "tiktok_idea": "A viral video concept...",
     "hashtags": "#tag1 #tag2..."
 }}
 """
