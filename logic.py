@@ -3,6 +3,7 @@ import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_fixed
 import json
 import logging
+import urllib.parse  # <--- הוספתי את השורה הזאת שהייתה חסרה!
 from config import AIModels, SYSTEM_PROMPT
 
 # הגדרת לוגים
@@ -26,7 +27,8 @@ def generate_perfect_content(api_key: str, params: dict) -> dict:
     try:
         configure_genai(api_key)
         
-        # הגדרת המודל עם פלט JSON מובנה (פיצ'ר של Gemini 1.5)
+        # הגדרת המודל עם פלט JSON מובנה
+        # שימוש ב-AIModels.GEMINI_PRO שואב את השם שהגדרנו ב-config.py
         model = genai.GenerativeModel(
             AIModels.GEMINI_PRO,
             generation_config={"response_mime_type": "application/json"}
@@ -43,9 +45,11 @@ def generate_perfect_content(api_key: str, params: dict) -> dict:
 
     except Exception as e:
         logging.error(f"AI Generation Error: {e}")
+        # במקרה של שגיאה, נחזיר None והממשק יציג הודעה
         return None
 
 def generate_image_url(prompt: str) -> str:
     """מייצר קישור לתמונה באמצעות Flux-Realism (Pollinations)."""
+    # עכשיו השורה הזו תעבוד כי urllib.parse יובא בהצלחה
     safe_prompt = urllib.parse.quote(f"cinematic shot, 8k, {prompt}")
     return f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=768&model=flux-realism&nologo=true"
