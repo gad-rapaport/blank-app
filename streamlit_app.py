@@ -39,7 +39,6 @@ with st.sidebar:
     else:
         st.info(t("no_history"))
 
-    # Debug info for A/B Testing
     st.caption(f"UI Variant: {st.session_state.ab_variant}")
 
 # --- 3. Main UI ---
@@ -57,15 +56,22 @@ with st.form("main_form"):
     col1, col2 = st.columns(2)
     with col1:
         recipient_name = st.text_input(t("name_label"))
-        relation = st.selectbox(t("relation_label"), ["Partner", "Date", "Friend", "Family", "Ex"] if st.session_state.lang == 'en' else ["בן/בת זוג", "דייט", "חבר/ה", "משפחה", "אקס/ית"])
+        # תיקון קטן לבחירת רשימות לפי שפה
+        relations_en = ["Partner", "Date", "Friend", "Family", "Ex"]
+        relations_he = ["בן/בת זוג", "דייט", "חבר/ה", "משפחה", "אקס/ית"]
+        relation = st.selectbox(t("relation_label"), relations_en if st.session_state.lang == 'en' else relations_he)
     
     with col2:
-        occasion = st.selectbox(t("occasion_label"), ["Birthday", "Anniversary", "Apology"] if st.session_state.lang == 'en' else ["יום הולדת", "יום נישואין", "סליחה", "געגוע", "עידוד"])
-        tone = st.selectbox(t("tone_label"), ["Romantic", "Funny", "Deep"] if st.session_state.lang == 'en' else ["רומנטי", "מצחיק", "עמוק", "חרוזים", "סחבק"])
+        occasions_en = ["Birthday", "Anniversary", "Apology"]
+        occasions_he = ["יום הולדת", "יום נישואין", "סליחה", "געגוע", "עידוד"]
+        occasion = st.selectbox(t("occasion_label"), occasions_en if st.session_state.lang == 'en' else occasions_he)
+        
+        tones_en = ["Romantic", "Funny", "Deep"]
+        tones_he = ["רומנטי", "מצחיק", "עמוק", "חרוזים", "סחבק"]
+        tone = st.selectbox(t("tone_label"), tones_en if st.session_state.lang == 'en' else tones_he)
 
     details = st.text_area(t("details_label"), placeholder=t("details_placeholder"))
     
-    # כפתור עם ARIA Label לנגישות
     submitted = st.form_submit_button(t("generate_btn"), help="Click to generate AI content")
 
 # --- 4. לוגיקה ותצוגה ---
@@ -75,7 +81,6 @@ if submitted:
     elif not recipient_name:
         st.warning(t("error_name"))
     else:
-        # סניטציה
         clean_name = sanitize_input(recipient_name)
         clean_details = sanitize_input(details)
         
@@ -97,19 +102,17 @@ if submitted:
                 img_prompt = result.get("image_prompt")
                 image_url = generate_image_url(img_prompt)
                 
-                # שמירה להיסטוריה
                 save_to_history({"recipient": clean_name, "occasion": occasion, "greeting": greeting})
                 
                 st.balloons()
                 
-                # --- A/B Testing Implementation ---
-                # וריאנט A משתמש בטאבים, וריאנט B משתמש ברשימה רציפה (Expanders)
                 if st.session_state.ab_variant == 'A':
                     tab1, tab2, tab3 = st.tabs([t("tab_card"), t("tab_social"), t("tab_raw")])
                     
                     with tab1:
-                        # נגישות: הוספת alt text לתמונה
-                        st.image(image_url, use_container_width=True, alt=f"AI generated image describing: {img_prompt}")
+                        # --- התיקון בוצע כאן: הוחלף use_container_width ב-use_column_width ---
+                        st.image(image_url, use_column_width=True, alt=f"AI generated: {img_prompt}")
+                        
                         st.markdown(f'<div class="glass-card" style="direction:{"rtl" if st.session_state.lang=="he" else "ltr"};">{greeting.replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
                         st.markdown(f'<a href="{get_whatsapp_link(greeting)}" target="_blank" style="text-decoration:none;"><button style="width:100%; padding:12px; background:#25D366; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:bold;">{t("whatsapp_btn")}</button></a>', unsafe_allow_html=True)
                     
@@ -121,13 +124,14 @@ if submitted:
                         st.json(result)
 
                 else: # Variant B
-                    st.image(image_url, use_container_width=True)
+                    # --- גם כאן בוצע התיקון ---
+                    st.image(image_url, use_column_width=True)
+                    
                     st.success(greeting)
                     st.caption("Variant B: Simplified View")
                     with st.expander(t("tab_social")):
                          st.write(result.get("tiktok_idea"))
 
-                # Affiliate / Monetization Section
                 st.divider()
                 st.markdown(f"### {t('gift_title')}")
                 st.markdown(t('gift_desc'))
