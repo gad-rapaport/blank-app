@@ -68,7 +68,7 @@ with col2:
                     genai.configure(api_key=api_key)
                     
                     # בחירת המודל (ביקשת את הפרו)
-                    model = genai.GenerativeModel('gemini-1.5-pro')
+                    model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     # בניית הבקשה (הפרומפט)
                     prompt = f"""
