@@ -155,7 +155,7 @@ def get_api_key():
 def generate_perfect_content(api_key, sender_g, recipient_g, recipient_name, relation, occasion, tone, details):
     genai.configure(api_key=api_key)
     # --- שינוי למודל Gemini 1.5 Pro החזק יותר ---
-    model = genai.GenerativeModel('gemini-3-pro')
+    model = genai.GenerativeModel('gemini-2.5-pro')
     
     prompt = f"""
     Act as a top-tier Israeli creative writer and emotional intelligence expert.
