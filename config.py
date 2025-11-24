@@ -9,7 +9,7 @@ PAGE_CONFIG = {
 
 # שימוש ב-Enum למודלים
 class AIModels:
-    GEMINI_PRO = "gemini-2.5-pro-latest"
+    GEMINI_PRO = "gemini-2.5-pro"
     # ניתן להוסיף כאן מודלים נוספים בעתיד
 
 CUSTOM_CSS = """
