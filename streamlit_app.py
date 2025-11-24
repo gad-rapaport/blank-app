@@ -3,323 +3,245 @@ import google.generativeai as genai
 import urllib.parse
 import time
 
-# --- 1. הגדרות בסיס ועיצוב פרימיום ---
-st.set_page_config(page_title="LoveFlow Premium", page_icon="💖", layout="centered")
+# --- 1. הגדרות בסיס ---
+st.set_page_config(page_title="LoveFlow Infinity", page_icon="💎", layout="wide")
 
-# CSS מתקדם: עיצוב פרימיום, פונטים, צבעים הרמוניים
-st.markdown("""
+# --- 2. ניהול ערכות נושא (Themes) ---
+# נשתמש ב-Session State כדי לשמור את הבחירה
+if 'theme' not in st.session_state:
+    st.session_state.theme = "Pastel Dreams"
+
+themes = {
+    "Pastel Dreams": {
+        "bg": "linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%)",
+        "primary": "#ff9a9e",
+        "text": "#4a4a4a",
+        "card_bg": "rgba(255, 255, 255, 0.8)"
+    },
+    "Red Velvet": {
+        "bg": "linear-gradient(to right, #434343 0%, black 100%)",
+        "primary": "#d31027",
+        "text": "#ffffff",
+        "card_bg": "rgba(40, 40, 40, 0.8)"
+    },
+    "Neon Nights": {
+        "bg": "linear-gradient(to top, #09203f 0%, #537895 100%)",
+        "primary": "#00d2ff",
+        "text": "#e0e0e0",
+        "card_bg": "rgba(16, 20, 50, 0.7)"
+    }
+}
+
+current_theme = themes[st.session_state.theme]
+
+# --- 3. CSS מתקדם ואנימציות ---
+st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;700&family=Dancing+Script:wght@700&display=swap');
 
-    body { font-family: 'Heebo', sans-serif; background-color: #f8f0fc; }
-    
-    .stApp {
-        background: linear-gradient(135deg, #f8f0fc 0%, #eaddff 100%);
-    }
+    /* רקע דינמי לפי התמה */
+    .stApp {{
+        background: {current_theme['bg']};
+        color: {current_theme['text']};
+    }}
 
-    /* כותרת ראשית */
-    .main-header {
-        font-family: 'Heebo', sans-serif;
-        font-weight: 700;
-        color: #6a1b9a;
-        text-align: center;
-        font-size: 3rem;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 10px;
-        background: linear-gradient(90deg, #ab47bc, #8e24aa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    .subtitle {
-        text-align: center;
-        color: #7b1fa2;
-        font-size: 1.1rem;
-        margin-bottom: 40px;
-        font-weight: 400;
-    }
+    /* אנימציית לבבות מרחפים ברקע */
+    .heart-bg {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+    }}
+    .heart {{
+        position: absolute;
+        bottom: -100px;
+        width: 40px;
+        height: 40px;
+        background: {current_theme['primary']};
+        opacity: 0.2;
+        animation: fly 10s infinite linear;
+        clip-path: path("M20,6.6c-5.3-6.6-14-5.3-17.6-1.3S-1.3,16,6.6,26.6C10.6,32,20,40,20,40s9.3-8,13.3-13.3c5.3-6.6,7.3-16,2.6-21.3S25.3,0,20,6.6z");
+    }}
+    @keyframes fly {{
+        0% {{ transform: translateY(0) rotate(0deg); opacity: 0.5; }}
+        100% {{ transform: translateY(-100vh) rotate(360deg); opacity: 0; }}
+    }}
 
-    /* כרטיסיות קלט - עיצוב זכוכית עדין */
-    .glass-container {
-        background: rgba(255, 255, 255, 0.6);
-        border-radius: 16px;
+    /* טיפוגרפיה */
+    h1 {{ font-family: 'Dancing Script', cursive; font-size: 4em !important; text-align: center; color: {current_theme['primary']}; }}
+    h3, h4, h5 {{ font-family: 'Assistant', sans-serif; }}
+    p, div {{ font-family: 'Assistant', sans-serif; font-size: 1.1em; }}
+
+    /* כרטיסיות זכוכית */
+    .glass {{
+        background: {current_theme['card_bg']};
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.1);
         padding: 30px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        margin-bottom: 25px;
-    }
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }}
 
-    /* כרטיס התוצאה הסופי - עיצוב נקי ומודרני */
-    .result-card {
-        background-color: #ffffff;
-        border-radius: 16px;
-        padding: 25px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-        border: none;
-        margin-top: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-    
-    .result-image {
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        width: 100%;
-        object-fit: cover;
-    }
-
-    .result-text {
-        font-family: 'Heebo', sans-serif;
-        font-size: 1.1rem;
-        line-height: 1.7;
-        color: #333;
-        direction: rtl;
-        white-space: pre-wrap;
-        background: #fcf8ff;
-        padding: 20px;
-        border-radius: 12px;
-        border-right: 4px solid #ab47bc;
-    }
-
-    /* כפתורי מגדר - עיצוב כרטיסייה */
-    .stRadio > div {
-        flex-direction: row;
-        justify-content: center;
-        gap: 15px;
-        background: rgba(255, 255, 255, 0.5);
-        padding: 15px;
-        border-radius: 12px;
-    }
-    
-    .stRadio label {
-        font-size: 1rem;
-        color: #4a148c;
-    }
-
-    /* כפתור ראשי - גרדיאנט חלק */
-    .stButton>button {
-        background: linear-gradient(90deg, #8e24aa 0%, #ab47bc 100%);
+    /* כפתור ראשי פועם */
+    .stButton>button {{
+        background: {current_theme['primary']};
         color: white;
-        border-radius: 50px;
-        height: 55px;
-        font-size: 18px;
-        font-weight: 600;
-        width: 100%;
         border: none;
-        box-shadow: 0 4px 20px rgba(142, 36, 170, 0.3);
-        transition: all 0.3s ease;
-        letter-spacing: 0.5px;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(142, 36, 170, 0.5);
-    }
-    
-    /* עיצוב טאבים */
-    .stTabs [data-baseweb="tab-list"] {
-        justify-content: center;
-        background-color: rgba(255, 255, 255, 0.5);
-        padding: 10px;
         border-radius: 50px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-family: 'Heebo', sans-serif;
-        color: #6a1b9a;
-        font-weight: 500;
-        border-radius: 50px;
-        padding: 10px 20px;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #ffffff;
-        color: #8e24aa;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+        padding: 15px 40px;
+        font-size: 20px;
+        font-weight: bold;
+        width: 100%;
+        box-shadow: 0 0 20px {current_theme['primary']};
+        transition: 0.3s;
+        animation: pulse 2s infinite;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(255, 105, 180, 0.4); }}
+        70% {{ box-shadow: 0 0 0 10px rgba(255, 105, 180, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(255, 105, 180, 0); }}
+    }}
+    .stButton>button:hover {{ transform: scale(1.05); }}
 
-    /* כותרות פנימיות */
-    h4 { color: #7b1fa2; font-weight: 600; margin-bottom: 15px; }
-    
 </style>
+
+<div class="heart-bg">
+    <div class="heart" style="left: 10%; animation-duration: 8s;"></div>
+    <div class="heart" style="left: 30%; animation-duration: 12s; animation-delay: 2s;"></div>
+    <div class="heart" style="left: 70%; animation-duration: 7s; animation-delay: 4s;"></div>
+    <div class="heart" style="left: 90%; animation-duration: 9s; animation-delay: 1s;"></div>
+</div>
 """, unsafe_allow_html=True)
 
-# --- 2. פונקציות לוגיקה משודרגות ---
+# --- 4. לוגיקה ---
 
 def get_api_key():
     if "GOOGLE_API_KEY" in st.secrets:
         return st.secrets["GOOGLE_API_KEY"]
     return st.sidebar.text_input("🔑 מפתח Gemini API", type="password")
 
-def generate_perfect_content(api_key, sender_g, recipient_g, recipient_name, relation, occasion, tone, details):
+def generate_infinity_content(api_key, sender_g, recipient_g, recipient_name, relation, occasion, tone, details):
     genai.configure(api_key=api_key)
-    # --- שינוי למודל Gemini 1.5 Pro החזק יותר ---
     model = genai.GenerativeModel('gemini-2.5-pro')
     
     prompt = f"""
-    Act as a top-tier Israeli creative writer and emotional intelligence expert.
-    
-    --- CRITICAL GRAMMAR RULES ---
-    Sender Gender: {sender_g} (You must use grammar for {sender_g} - e.g., if Male: "אני כותב", if Female: "אני כותבת").
-    Recipient Gender: {recipient_g} (You must use grammar for {recipient_g} - e.g., if Male: "אתה", if Female: "את").
-    ------------------------------
-
-    Context:
-    - Recipient Name: {recipient_name}
-    - Relation: {relation}
-    - Occasion: {occasion}
-    - Tone: {tone}
-    - Personal Details: {details}
+    Act as a world-class creative director.
+    Sender: {sender_g}. Recipient: {recipient_g} ({recipient_name}).
+    Occasion: {occasion}. Tone: {tone}. Details: {details}.
     
     Tasks:
-    1. **Greeting (Hebrew):** Write a touching, human-sounding message. Modern Hebrew. No archaic language. Be creative and authentic.
-    2. **Image Prompt (English):** A detailed visual description for a realistic photo that captures the mood. Focus on lighting, composition, and emotion.
-    3. **TikTok/Reels Idea:** A short script/concept for a video to go with this greeting.
-    4. **Hashtags:** 5 viral Hebrew hashtags for this specific event.
+    1. **Greeting (Hebrew):** Modern, emotional, perfect grammar.
+    2. **Image Prompt (English):** Cinematic lighting, photorealistic, 8k, distinct style matching the tone.
+    3. **Music:** Name a specific song (Artist - Title) that fits perfectly.
+    4. **Color:** Suggest a hex color code that fits the mood.
     
     OUTPUT FORMAT:
-    [TEXT_START]
-    ...greeting...
-    [TEXT_END]
-    [IMG_START]
-    ...prompt...
-    [IMG_END]
-    [TIKTOK_START]
-    ...script idea...
-    [TIKTOK_END]
-    [TAGS_START]
-    ...hashtags...
-    [TAGS_END]
+    [TEXT]{{hebrew_greeting}}[/TEXT]
+    [IMG]{{image_prompt}}[/IMG]
+    [SONG]{{song_name}}[/SONG]
     """
     
     try:
         response = model.generate_content(prompt)
-        text = response.text
-        
-        greeting = text.split("[TEXT_START]")[1].split("[TEXT_END]")[0].strip()
-        img_prompt = text.split("[IMG_START]")[1].split("[IMG_END]")[0].strip()
-        tiktok = text.split("[TIKTOK_START]")[1].split("[TIKTOK_END]")[0].strip()
-        tags = text.split("[TAGS_START]")[1].split("[TAGS_END]")[0].strip()
-        
-        return greeting, img_prompt, tiktok, tags
+        t = response.text
+        greeting = t.split("[TEXT]")[1].split("[/TEXT]")[0].strip()
+        img_p = t.split("[IMG]")[1].split("[/IMG]")[0].strip()
+        song = t.split("[SONG]")[1].split("[/SONG]")[0].strip()
+        return greeting, img_p, song
     except:
-        return None, None, None, None
+        return None, None, None
 
-def get_whatsapp_link(text):
-    return f"https://wa.me/?text={urllib.parse.quote(text)}"
+# --- 5. ממשק משתמש (UI) ---
 
-# --- 3. ממשק המשתמש (UI) פרימיום ---
+# סרגל צד לבחירת עיצוב
+with st.sidebar:
+    st.title("🎨 עיצוב")
+    selected_theme = st.selectbox("בחר אווירה:", list(themes.keys()), index=list(themes.keys()).index(st.session_state.theme))
+    if selected_theme != st.session_state.theme:
+        st.session_state.theme = selected_theme
+        st.rerun()
+    
+    st.markdown("---")
+    st.info("💡 טיפ: נסה את 'Neon Nights' לברכות מסיבה, ואת 'Red Velvet' לאהבה רומנטית.")
 
-st.markdown('<div class="main-header">LoveFlow Premium</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">יצירת תוכן רומנטי, ברמה אחרת.</div>', unsafe_allow_html=True)
+# כותרת ראשית
+st.markdown("<h1>LoveFlow Infinity</h1>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; opacity:0.8;'>המילים שלך, הרגש שלנו. עכשיו ב-{st.session_state.theme}</p>", unsafe_allow_html=True)
 
 api_key = get_api_key()
 
-# --- חלק 1: מי נגד מי (מגדר) ---
-st.markdown('<div class="glass-container">', unsafe_allow_html=True)
-col_gender1, col_gender2 = st.columns(2)
+# אזור הקלט - מחולק ל-2 עמודות
+col_left, col_right = st.columns([1, 1.5])
 
-with col_gender1:
-    st.markdown("<h4 style='text-align:center;'>אני... (השולח/ת)</h4>", unsafe_allow_html=True)
-    sender_gender = st.radio("מגדר שולח", ["גבר 👨", "אישה 👩"], horizontal=True, label_visibility="collapsed", key="sender")
-
-with col_gender2:
-    st.markdown("<h4 style='text-align:center;'>כותב/ת ל... (המקבל/ת)</h4>", unsafe_allow_html=True)
-    recipient_gender = st.radio("מגדר מקבל", ["גבר 👨", "אישה 👩"], horizontal=True, label_visibility="collapsed", key="recipient")
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- חלק 2: הפרטים ---
-with st.container():
-    st.markdown('<div class="glass-container">', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        recipient_name = st.text_input("שם המקבל/ת", placeholder="למשל: דני / נועה")
-        relation = st.selectbox("מה הקשר?", ["בן/בת זוג", "דייט", "חבר/ה טוב/ה", "משפחה (הורים/אחים)", "קולגה", "אקס/ית"])
-        
-    with col2:
-        occasion = st.selectbox("האירוע", ["יום הולדת", "יום אהבה", "סתם צומי", "סליחה", "יום נישואין", "פרידה", "עידוד"])
-        tone = st.selectbox("הסגנון", ["מרגש ורומנטי", "קליל ומצחיק", "עמוק ופילוסופי", "חרוזים קלילים", "ישראלי סחבק"])
-
-    details = st.text_area("פרטים אישיים (הקסם קורה כאן)", placeholder="הוא אוהב סושי, היא תמיד מאחרת, הבדיחה על הכלב...")
+with col_left:
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.markdown("### 👤 פרטים בסיסיים")
+    sender_gender = st.radio("אני:", ["גבר", "אישה"], horizontal=True)
+    recipient_gender = st.radio("כותב ל:", ["גבר", "אישה"], horizontal=True)
+    recipient_name = st.text_input("שם המקבל/ת")
+    relation = st.selectbox("קשר", ["בן/בת זוג", "דייט", "משפחה", "חבר/ה", "אקס/ית"])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    generate_btn = st.button("✨ צור את הברכה המושלמת")
+with col_right:
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.markdown("### ✨ הקסם")
+    c1, c2 = st.columns(2)
+    with c1:
+        occasion = st.selectbox("אירוע", ["יום הולדת", "יום אהבה", "סליחה", "געגוע", "עידוד"])
+    with c2:
+        tone = st.selectbox("סגנון", ["רומנטי (דמעות)", "שנון וסקסי", "קליל וחברי", "פיוטי ועמוק"])
+    
+    details = st.text_area("פרטים אישיים (שפוך את הלב...)", height=100)
+    generate_btn = st.button("💎 צור יצירת מופת")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- חלק 3: התוצאה ---
-if generate_btn:
-    if not api_key or not recipient_name:
-        st.warning("חסרים פרטים! מלא את השם ואת המפתח.")
-    else:
-        s_gen = "Male" if "גבר" in sender_gender else "Female"
-        r_gen = "Male" if "גבר" in recipient_gender else "Female"
+# תוצאה
+if generate_btn and api_key and recipient_name:
+    with st.spinner("מפעיל את קסמי ה-AI... 🔮"):
+        s_gen = "Male" if sender_gender == "גבר" else "Female"
+        r_gen = "Male" if recipient_gender == "גבר" else "Female"
         
-        with st.spinner("מג'נרט אהבה עם המנועים החדשים... 💖"):
-            greeting, img_prompt, tiktok, tags = generate_perfect_content(
-                api_key, s_gen, r_gen, recipient_name, relation, occasion, tone, details
-            )
+        greeting, img_prompt, song = generate_infinity_content(api_key, s_gen, r_gen, recipient_name, relation, occasion, tone, details)
+        
+        if greeting:
+            # יצירת תמונה
+            enc_prompt = urllib.parse.quote(f"cinematic shot, {img_prompt}")
+            img_url = f"https://image.pollinations.ai/prompt/{enc_prompt}?width=1200&height=600&model=flux-realism&nologo=true"
             
-            if greeting:
-                st.balloons()
+            st.markdown("---")
+            
+            # תצוגה ראשית גדולה
+            st.image(img_url, use_container_width=True)
+            
+            col_music, col_text = st.columns([1, 2])
+            
+            with col_music:
+                st.markdown('<div class="glass">', unsafe_allow_html=True)
+                st.markdown("### 🎧 הפסקול שלך")
+                st.markdown(f"**{song}**")
+                # הטמעת נגן יוטיוב (חיפוש השיר)
+                st.video(f"https://www.youtube.com/embed?listType=search&list={urllib.parse.quote(song)}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col_text:
+                st.markdown('<div class="glass">', unsafe_allow_html=True)
+                st.markdown(f"<div style='direction:rtl; white-space:pre-wrap; font-size:1.2em; line-height:1.6;'>{greeting}</div>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                # --- יצירת תמונה - ניסיון לריאליזם ---
-                encoded_prompt = urllib.parse.quote(f"realistic photo, high quality, {img_prompt}")
-                # שימוש במודל flux-realism
-                image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=768&model=flux-realism&nologo=true"
+                # כפתור וואטסאפ ענק
+                st.markdown(f"""
+                <a href="https://wa.me/?text={urllib.parse.quote(greeting)}" target="_blank">
+                    <button style="background-color:#25D366; color:white; border:none; padding:15px; width:100%; border-radius:10px; font-weight:bold; font-size:1.2em; cursor:pointer;">
+                        שלח את זה עכשיו בוואטסאפ 💚
+                    </button>
+                </a>
+                """, unsafe_allow_html=True)
 
-                # --- טאבים לסידור התוכן ---
-                tab1, tab2, tab3 = st.tabs(["💌 הברכה", "📱 סושיאל קיט", "🎁 הפתעה"])
-
-                with tab1:
-                    # הברכה המעוצבת מחדש
-                    st.markdown(f"""
-                    <div class="result-card">
-                        <img src="{image_url}" class="result-image" alt="AI generated image">
-                        <div class="result-text">{greeting}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    # כפתור וואטסאפ משודרג
-                    st.markdown(f"""
-                    <a href="{get_whatsapp_link(greeting)}" target="_blank" style="text-decoration:none;">
-                        <div style="background: linear-gradient(45deg, #25D366, #128C7E); color:white; padding:15px; border-radius:50px; text-align:center; font-weight:600; box-shadow:0 4px 15px rgba(37, 211, 102, 0.3); transition: 0.3s;">
-                            שליחה מהירה בוואטסאפ 🚀
-                        </div>
-                    </a>
-                    """, unsafe_allow_html=True)
-
-                with tab2:
-                    st.success("✨ הערכה למשפיענ/ית:")
-                    st.markdown("#### 🎥 רעיון לטיקטוק/רילס")
-                    st.info(tiktok)
-                    
-                    st.markdown("#### #️⃣ האשטאגים להעתקה")
-                    st.code(tags, language="text")
-                    
-                    st.markdown("#### 🔗 קיצורי דרך")
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        st.link_button("פתח טיקטוק", "https://www.tiktok.com/")
-                    with c2:
-                        st.link_button("פתח אינסטגרם", "https://www.instagram.com/")
-                    with c3:
-                        st.link_button("פתח טוויטר/X", "https://twitter.com/")
-
-                with tab3:
-                    st.markdown("### רוצה להוסיף מתנה אמיתית? 🎁")
-                    st.markdown(f"הברכה הזו תלך מושלם עם זר פרחים או שוקולד.")
-                    st.markdown("""
-                    <a href="https://zer4u.co.il" target="_blank">
-                        <button style="background: linear-gradient(90deg, #db2777, #e91e63); color:white; border:none; padding:15px; width:100%; border-radius:12px; cursor:pointer; font-weight:600; font-size:16px;">
-                            הזמן מתנה עכשיו (Zer4U) 💐
-                        </button>
-                    </a>
-                    """, unsafe_allow_html=True)
-
-            else:
-                st.error("ה-AI נתקל בבעיה. נסה שוב!")
-
-# --- Footer ---
-st.markdown("<br><hr><center style='color:#9e9e9e; font-size:0.9rem;'>LoveFlow Premium | Created with 💖 & Python</center>", unsafe_allow_html=True)
+        else:
+            st.error("שגיאה ביצירה. נסה שוב.")
