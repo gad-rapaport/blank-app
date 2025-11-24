@@ -78,7 +78,7 @@ def get_api_key():
 def generate_content(api_key, recipient, occasion, tone, details, relation):
     """Generates the text and the image prompt using Gemini."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     # Combined prompt for efficiency: Generate Hebrew text AND an English image prompt
     full_prompt = f"""
