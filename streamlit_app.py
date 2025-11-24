@@ -1,202 +1,247 @@
 import streamlit as st
 import google.generativeai as genai
 import urllib.parse
-import time
+import random
 
-# --- Phase 1: Configuration & Setup ---
-st.set_page_config(page_title="LoveFlow | לב-לי", page_icon="❤️", layout="centered")
+# --- 1. הגדרות בסיס ועיצוב ---
+st.set_page_config(page_title="LoveFlow V2", page_icon="💌", layout="centered")
 
-# --- Phase 2: Design System (Glassmorphism & RTL) ---
+# עיצוב CSS מתקדם - פונטים בעברית, אנימציות וכרטיסיות
 st.markdown("""
 <style>
-    /* Background Gradient */
-    .stApp {
-        background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
-        background-attachment: fixed;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;500;700&family=Amatic+SC:wght@700&display=swap');
+
+    body { font-family: 'Rubik', sans-serif; background-color: #fdf2f8; }
     
-    /* Global Text Settings */
-    body, .stMarkdown, .stButton, .stTextInput, .stTextArea, .stSelectbox {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        color: #4A0404;
+    .stApp {
+        background: radial-gradient(circle at top, #fce7f3, #fbcfe8, #fff1f2);
     }
 
-    /* Glassmorphism Card Style */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.4);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+    /* כותרת ראשית */
+    .main-title {
+        font-family: 'Amatic SC', cursive;
+        font-size: 4em;
+        color: #db2777;
+        text-align: center;
+        text-shadow: 2px 2px 0px #fbcfe8;
+        margin-bottom: -10px;
+    }
+
+    /* כרטיס הקלט */
+    .input-card {
+        background: rgba(255, 255, 255, 0.85);
         border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
         padding: 25px;
+        box-shadow: 0 10px 25px rgba(219, 39, 119, 0.15);
+        border: 1px solid #fce7f3;
         margin-bottom: 20px;
-        text-align: right;
+    }
+
+    /* כרטיס התוצאה - סגנון פולארויד */
+    .polaroid {
+        background: white;
+        padding: 15px 15px 40px 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        transform: rotate(-1deg);
+        transition: transform 0.3s;
+        border-radius: 4px;
+        margin-top: 20px;
+        text-align: center;
+    }
+    .polaroid:hover { transform: rotate(0deg) scale(1.02); }
+    
+    .polaroid img { width: 100%; border-radius: 2px; border: 1px solid #eee; }
+    
+    .handwritten-text {
+        font-family: 'Amatic SC', cursive;
+        font-size: 1.8em;
+        color: #333;
+        margin-top: 15px;
+        line-height: 1.2;
         direction: rtl;
     }
 
-    /* Button Styling */
+    /* כפתור ראשי */
     .stButton>button {
-        background: linear-gradient(90deg, #FF512F 0%, #DD2476 100%); 
+        background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
         color: white;
-        border: none;
         border-radius: 50px;
-        padding: 15px 30px;
-        font-size: 18px;
-        font-weight: bold;
+        font-size: 22px;
+        padding: 12px;
+        border: none;
         width: 100%;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(221, 36, 118, 0.4);
+        box-shadow: 0 4px 15px rgba(190, 24, 93, 0.3);
+        transition: 0.3s;
     }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(221, 36, 118, 0.6);
-    }
+    .stButton>button:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(190, 24, 93, 0.5); }
 
-    /* Hide Streamlit Branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Input Fields Styling */
-    .stTextInput>div>div, .stTextArea>div>div, .stSelectbox>div>div {
-        background-color: rgba(255, 255, 255, 0.6);
-        border-radius: 10px;
-        border: 1px solid #ffb6c1;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Phase 3: Logic Functions ---
+# --- 2. לוגיקה ופונקציות ---
 
 def get_api_key():
-    """Handles API key retrieval securely."""
     if "GOOGLE_API_KEY" in st.secrets:
         return st.secrets["GOOGLE_API_KEY"]
-    return st.sidebar.text_input("🔑 הכנס מפתח Gemini API", type="password")
+    return st.sidebar.text_input("🔑 מפתח Gemini API", type="password")
 
-def generate_content(api_key, recipient, occasion, tone, details, relation):
-    """Generates the text and the image prompt using Gemini."""
+def generate_full_package(api_key, recipient, occasion, tone, details, relation):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
     
-    # Combined prompt for efficiency: Generate Hebrew text AND an English image prompt
-    full_prompt = f"""
-    You are a romantic content expert. Perform two tasks:
+    prompt = f"""
+    Act as a professional Israeli copywriter and emotional intelligence expert.
     
-    Task 1: Write a touching, personalized greeting in HEBREW.
-    Recipient: {recipient}
-    Occasion: {occasion}
-    Relation: {relation}
-    Tone: {tone}
-    Details to include: {details}
-    Output requirements: Beautiful Hebrew, spacing between paragraphs, add emojis.
+    Input Data:
+    - Recipient: {recipient}
+    - Relation: {relation}
+    - Occasion: {occasion}
+    - Tone: {tone}
+    - Specific Details: {details}
     
-    Task 2: Write a short, artistic image generation prompt in ENGLISH that captures the mood of this greeting. 
-    Style: {tone} (e.g., if funny -> cartoon style, if romantic -> watercolor or cinematic lighting).
-    Do NOT include text in the image prompt.
+    Your Tasks (Output strictly in the requested format):
+    
+    1. **The Greeting (HEBREW):** Write a message that sounds 100% HUMAN. 
+       - Do NOT use archaic words like 'שזורה', 'טנא', 'רבב'.
+       - Use modern Israeli Hebrew. Use slang if the tone implies it.
+       - Make it feel personal, slightly imperfect, and warm.
+       - Include emojis.
+    
+    2. **Image Prompt (ENGLISH):** A visual description for an AI image generator representing the mood. No text in image.
+    
+    3. **Song Recommendation:** Suggest ONE real Israeli or International song that fits the mood perfectly (Artist - Song).
+    
+    4. **Social Captions (HEBREW):** 3 short options for an Instagram/Facebook caption if the user shares this.
     
     RESPONSE FORMAT:
-    [HEBREW_START]
-    ... the hebrew greeting here ...
-    [HEBREW_END]
-    [IMAGE_PROMPT_START]
-    ... the english image prompt here ...
-    [IMAGE_PROMPT_END]
+    [GREETING_START]
+    ...text...
+    [GREETING_END]
+    [IMAGE_START]
+    ...prompt...
+    [IMAGE_END]
+    [SONG_START]
+    ...song...
+    [SONG_END]
+    [SOCIAL_START]
+    Option 1: ...
+    Option 2: ...
+    Option 3: ...
+    [SOCIAL_END]
     """
     
     try:
-        response = model.generate_content(full_prompt)
+        response = model.generate_content(prompt)
         text = response.text
         
-        # Parsing the response
-        hebrew_text = text.split("[HEBREW_START]")[1].split("[HEBREW_END]")[0].strip()
-        image_prompt = text.split("[IMAGE_PROMPT_START]")[1].split("[IMAGE_PROMPT_END]")[0].strip()
+        greeting = text.split("[GREETING_START]")[1].split("[GREETING_END]")[0].strip()
+        img_prompt = text.split("[IMAGE_START]")[1].split("[IMAGE_END]")[0].strip()
+        song = text.split("[SONG_START]")[1].split("[SONG_END]")[0].strip()
+        social = text.split("[SOCIAL_START]")[1].split("[SOCIAL_END]")[0].strip()
         
-        return hebrew_text, image_prompt
-    except Exception as e:
-        return None, None
+        return greeting, img_prompt, song, social
+    except:
+        return None, None, None, None
 
-def get_pollinations_url(prompt):
-    """Generates a direct URL for the image based on the prompt."""
-    if not prompt:
-        return "https://image.pollinations.ai/prompt/love%20heart%20flowers?width=800&height=600&nologo=true"
-    
-    encoded_prompt = urllib.parse.quote(prompt)
-    # Adding 'nologo' to remove watermarks, setting seed for consistency if needed
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=600&model=flux&nologo=true"
-    return url
+def get_whatsapp_link(text):
+    encoded_text = urllib.parse.quote(text)
+    return f"https://wa.me/?text={encoded_text}"
 
-# --- Phase 4: UI Structure ---
+# --- 3. ממשק משתמש (UI) ---
 
-def main():
-    st.markdown("<h1 style='text-align: center; color: #880e4f; font-weight: 800;'>❤️ LoveFlow</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #880e4f; font-size: 1.2em;'>המילים שלך, הרגש שלנו.</p>", unsafe_allow_html=True)
+st.markdown('<div class="main-title">LoveFlow</div>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: #9d174d;">מילים שנוגעות בלב. בול בזמן.</p>', unsafe_allow_html=True)
 
-    api_key = get_api_key()
+api_key = get_api_key()
 
-    # --- Input Section (Inside a Glass Card) ---
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+# --- טופס הקלט (Form) ---
+with st.container():
+    st.markdown('<div class="input-card">', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
-        recipient = st.text_input("למי כותבים?", placeholder="למשל: נועה / בעלי היקר")
-        relation = st.selectbox("מה הקשר?", ["בני זוג", "דייט ראשון", "חברות הכי טובות", "משפחה", "בקשת סליחה"])
+        recipient = st.text_input("למי כותבים?", placeholder="שם או כינוי")
+        relation = st.selectbox("מי זה בשבילך?", [
+            "בן/בת זוג (נשואים)", "דייט / התחלה חדשה", 
+            "חבר/ה הכי טוב/ה", "אמא/אבא", 
+            "גננת / מורה (סוף שנה)", "מפקד/ת או חייל/ת",
+            "קולגה לעבודה", "אקס/ית (סגירת מעגל)", "לעצמי (חיזוק)"
+        ])
+        
     with col2:
-        occasion = st.selectbox("מה האירוע?", ["יום אהבה / ולנטיין", "יום הולדת", "סתם כי בא לי לפרגן", "יום נישואין", "בוקר טוב רומנטי"])
-        tone = st.selectbox("באיזה וייב?", ["רומנטי ומרגש (דמעות)", "קליל ומצחיק", "חרוזים קלאסי", "שנון ומקורי", "פסוקים ומסורתי"])
+        occasion = st.selectbox("מה הטריגר?", [
+            "יום הולדת", "יום אהבה", "סתם געגוע", 
+            "בקשת סליחה (פישלתי)", "עידוד וחיזוק", 
+            "יום נישואין", "פרידה / שחרור", "תודה על הכל"
+        ])
+        tone = st.selectbox("באיזה וייב?", [
+            "אמיתי וחשוף (בלי מסיכות)", 
+            "קליל, קצר וקולע", 
+            "הומוריסטי ושנון", 
+            "חם, עוטף ומשפחתי", 
+            "רוחני / מסורתי"
+        ])
 
-    details = st.text_area("פרטים שחובה להזכיר (כדי שירגיש אישי)", placeholder="למשל: הטיול שעשינו ברומא, זה שהיא מכורה לשוקולד, הכינוי שלה 'בובי'...")
+    details = st.text_area("התבלין הסודי (פרטים אישיים)", 
+                           placeholder="דוגמה: הבדיחה שלנו על הפיצה, איך הוא תמיד נרדם בסרטים, העזרה שלו במעבר דירה...",
+                           help="ככל שתכתוב יותר ספציפי, התוצאה תהיה פחות 'רובוטית'.")
     
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    generate = st.button("✨ צור לי קסם עכשיו")
 
-    generate_btn = st.button("✨ צור לי כרטיס ברכה מושלם")
-
-    # --- Output Section ---
-    if generate_btn:
-        if not api_key:
-            st.error("⚠️ חסר מפתח API. נא להגדיר אותו בהגדרות או בסרגל הצד.")
-        elif not recipient or not details:
-            st.warning("⚠️ חסר מידע! נא למלא למי הברכה ופרטים אישיים.")
-        else:
-            with st.spinner('🎨 ה-AI מלחין מילים ומצייר עבורך...'):
+# --- תוצאה ---
+if generate:
+    if not api_key or not recipient:
+        st.warning("חסרים פרטים! נא למלא הכל.")
+    else:
+        with st.spinner('בוחר את המילים הכי נכונות...'):
+            greeting, img_prompt, song, social = generate_full_package(api_key, recipient, occasion, tone, details, relation)
+            
+            if greeting:
+                # יצירת תמונה
+                encoded_prompt = urllib.parse.quote(img_prompt)
+                image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=800&model=flux&nologo=true"
                 
-                # 1. Generate Text & Image Prompt
-                hebrew_greeting, img_prompt = generate_content(api_key, recipient, occasion, tone, details, relation)
+                # --- הצגת התוצאה המרכזית (פולארויד) ---
+                col_res1, col_res2 = st.columns([2, 1])
                 
-                if hebrew_greeting:
-                    # 2. Generate Image URL
-                    image_url = get_pollinations_url(img_prompt)
+                with col_res1:
+                    st.markdown(f"""
+                    <div class="polaroid">
+                        <img src="{image_url}">
+                        <div class="handwritten-text">{greeting.replace(chr(10), '<br>')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col_res2:
+                    st.markdown("### 🎁 החבילה המלאה")
                     
-                    # 3. Display Result in a "Shareable Card"
+                    # המלצת שיר
+                    st.info(f"🎵 **שיר לאווירה:**\n{song}")
+                    
+                    # כפתור וואטסאפ
+                    wa_link = get_whatsapp_link(greeting)
+                    st.markdown(f"""
+                    <a href="{wa_link}" target="_blank">
+                        <button style="background-color:#25D366; color:white; border:none; padding:10px; width:100%; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:10px;">
+                             שלח בוואטסאפ עכשיו 📱
+                        </button>
+                    </a>
+                    """, unsafe_allow_html=True)
+                    
+                    # פוסטים מוכנים
+                    with st.expander("📲 פוסטים מוכנים לאינסטה/פייסבוק"):
+                        st.text(social)
+                    
+                    # אפשרות שיווקית (Affiliate Mockup)
                     st.markdown("---")
-                    
-                    # Container for the result
-                    st.markdown(f"""
-                    <div class="glass-card" style="text-align: center;">
-                        <img src="{image_url}" style="width: 100%; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                        <div style="font-size: 1.1em; line-height: 1.6; white-space: pre-wrap; font-weight: 500; color: #2c0b0e;">
-                            {hebrew_greeting}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.caption("💡 רעיון:")
+                    st.markdown(f"לשלוח ל{recipient} גם **שובר מפנק**?")
+                    st.markdown("[לחץ כאן לרכישת BuyMe >>](#)")
 
-                    # 4. Monetization / Affiliate Slot (Non-intrusive)
-                    st.markdown(f"""
-                    <div style="background-color: rgba(255,255,255,0.7); padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; border: 1px dashed #FF512F;">
-                        <strong>🎁 רוצה לשדרג את הברכה?</strong><br>
-                        <a href="https://zer4u.co.il" target="_blank" style="text-decoration: none; color: #DD2476; font-weight: bold; font-size: 1.1em;">
-                            לחץ כאן כדי לשלוח ל{recipient} פרחים אמיתיים יחד עם הברכה! 💐
-                        </a>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # 5. Copy Helper
-                    st.caption("👇 העתק את הטקסט מכאן לשליחה בוואטסאפ:")
-                    st.text_area("Label", value=hebrew_greeting, height=150, label_visibility="collapsed")
-                    
-                else:
-                    st.error("אירעה שגיאה ביצירת התוכן. נסה שוב או בדוק את המפתח.")
+            else:
+                st.error("משהו נתקע ביצירתיות... נסה שוב.")
 
-if __name__ == "__main__":
-    main()
+# --- Footer נסתר לקידום עתידי ---
+st.markdown("<br><br><div style='text-align:center; color:#aaa; font-size:0.8em;'>Powered by LoveFlow AI</div>", unsafe_allow_html=True)
